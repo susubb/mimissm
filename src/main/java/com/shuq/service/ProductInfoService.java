@@ -12,4 +12,6 @@ public interface ProductInfoService {
 
     //分页功能实现
     PageInfo splitPage(int pageNum,int pageSize);
+
+    int save(ProductInfo info);
 }
