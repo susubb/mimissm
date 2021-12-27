@@ -4,6 +4,7 @@ import com.github.pagehelper.PageInfo;
 import com.shuq.pojo.ProductInfo;
 import com.shuq.service.ProductInfoService;
 import com.shuq.utils.FileNameUtil;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -65,6 +66,10 @@ public class ProductInfoAction {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
+
+        //返回客户端Json对象，封装图片的路径，为了在页面实现立即回显
+        JSONObject object = new JSONObject();
+        object.put("imgurl",saveFileName);
+        return object.toString();
     }
 }
