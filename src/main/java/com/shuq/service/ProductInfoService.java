@@ -2,6 +2,7 @@ package com.shuq.service;
 
 import com.github.pagehelper.PageInfo;
 import com.shuq.pojo.ProductInfo;
+import com.shuq.pojo.vo.ProductInfoVo;
 
 import java.util.List;
 
@@ -14,4 +15,21 @@ public interface ProductInfoService {
     PageInfo splitPage(int pageNum,int pageSize);
 
     int save(ProductInfo info);
+
+    //按主键id查询商品
+    ProductInfo getByID(int pid);
+
+    //更新商品
+    int update(ProductInfo info);
+
+    //单个商品删除
+    int delete(int pid);
+
+    int deleteBatch(String []ids);
+
+    //多条件商品查询
+    List<ProductInfo> selectCondition(ProductInfoVo vo);
+
+    //多条件查询分页
+    public PageInfo splitPageVo(ProductInfoVo vo,int pageSize);
 }

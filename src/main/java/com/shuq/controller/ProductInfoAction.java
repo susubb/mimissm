@@ -2,11 +2,13 @@ package com.shuq.controller;
 
 import com.github.pagehelper.PageInfo;
 import com.shuq.pojo.ProductInfo;
+import com.shuq.pojo.vo.ProductInfoVo;
 import com.shuq.service.ProductInfoService;
 import com.shuq.utils.FileNameUtil;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,8 +45,17 @@ public class ProductInfoAction {
     //显示第1页的5条记录
     @RequestMapping("/split")
     public String split(HttpServletRequest request){
+        PageInfo info = null;
+        Object vo = request.getSession().getAttribute("prodVo");
+        if (vo != null){
+            info = productInfoService.splitPageVo((ProductInfoVo)vo,PAGE_SIZE);
+            request.getSession().removeAttribute("prodVo");
+        }else {
+            info = productInfoService.splitPage(1,PAGE_SIZE);
+        }
+
         //得到第1页的数据
-        PageInfo info = productInfoService.splitPage(1,PAGE_SIZE);
+
         request.setAttribute("info",info);
         return "product";
     }
@@ -52,9 +63,9 @@ public class ProductInfoAction {
     //ajax分页翻页处理
     @ResponseBody
     @RequestMapping("/ajaxSplit")
-    public void ajaxSplit(int page, HttpSession session){
+    public void ajaxSplit(ProductInfoVo vo,HttpSession session){
         //取得当前page参数的页面的数据
-        PageInfo info = productInfoService.splitPage(page,PAGE_SIZE);
+        PageInfo info = productInfoService.splitPageVo(vo,PAGE_SIZE);
         session.setAttribute("info",info);
     }
 
@@ -95,8 +106,105 @@ public class ProductInfoAction {
         }else {
             request.setAttribute("msg","增加失败！");
         }
+        //清空saveFileName变量中的内容，为了下次增加或修改的异步ajax的上传处理
+        saveFileName = "";
         //增加成功后应该重新访问数据库，所以跳转到分页显示的action上
 
         return "forward:/prod/split.action";
     }
+
+    @RequestMapping("/one")
+    public String one(int pid,ProductInfoVo vo, Model model,HttpSession session){
+        ProductInfo info = productInfoService.getByID(pid);
+        model.addAttribute("prod",info);
+        //将多条件及页码放入session中，更新处理结束后分页时读取条件和页码进行处理
+        session.setAttribute("prodVo",vo);
+        return "update";
+    }
+
+    @RequestMapping("/update")
+    public String update(ProductInfo info,HttpServletRequest request){
+        //因为ajax的异步图片上传，如果有上传过，
+        //则saveFileName里有上传上来的图片的名称，
+        //如果没有使用异步ajax上传过图片，则saveFileName="",
+        //实体类info使用隐藏表单提供上来的pImage原始图片的名称;
+        if (!saveFileName.equals("")){
+            info.setpImage(saveFileName);
+        }
+        //完成更新处理
+        int num = -1;
+        try{
+            num = productInfoService.update(info);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        if (num > 0){
+            //更新成功
+            request.setAttribute("msg","更新成功！");
+        }else {
+            //更新失败
+            request.setAttribute("msg","更新失败！");
+        }
+        //处理完更新后，saveFileName里有可能有数据，
+        //而下次一定更新时要使用这个变量做为判断的依据，就会出错，所以必须清空saveFileName
+        saveFileName = "";
+        return "forward:/prod/split.action";
+    }
+
+    @RequestMapping("/delete")
+    public String delete(int pid,ProductInfoVo vo,HttpServletRequest request){
+        int num = -1;
+        try {
+            num = productInfoService.delete(pid);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (num > 0){
+            request.setAttribute("msg","删除成功");
+            request.getSession().setAttribute("deleteProdVo",vo);
+        }else {
+            request.setAttribute("msg","删除失败");
+        }
+        //删除结束后跳到分页显示
+        return "forward:/prod/deleteAjaxSplit.action";
+    }
+
+    @RequestMapping(value = "/deleteAjaxSplit",produces = "text/html;charset=UTF-8")
+    @ResponseBody
+    public Object deleteAjaxSplit(HttpServletRequest request){
+        //取得第一页的数据
+        PageInfo info = null;
+        Object vo = request.getSession().getAttribute("deleteProdVo");
+        if (vo != null){
+            info = productInfoService.splitPageVo((ProductInfoVo) vo,PAGE_SIZE);
+        }else {
+            info = productInfoService.splitPage(1,PAGE_SIZE);
+        }
+
+        request.getSession().setAttribute("info",info);
+        return request.getAttribute("msg");
+    }
+
+    //批量删除商品
+    @RequestMapping("/deleteBatch")
+    //pids="1,4,5"  ps[1,4,5]
+    public String deleteBatch(String pids,HttpServletRequest request){
+        //将上传上来的字符串截开，形成商品id的字符数组
+        String[] ps = pids.split(",");
+
+        try {
+            int num = productInfoService.deleteBatch(ps);
+            if (num > 0){
+                request.setAttribute("msg","批量删除成功！");
+            }else {
+                request.setAttribute("msg","批量删除失败！");
+            }
+        } catch (Exception e) {
+            request.setAttribute("msg","商品不可删除！");
+        }
+        return "forward:/prod/deleteAjaxSplit.action";
+    }
+
+
 }
